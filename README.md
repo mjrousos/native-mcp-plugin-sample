@@ -5,14 +5,16 @@ launcher chooses the executable using `process.platform` and `process.arch`, the
 connects its standard input/output directly to Copilot's MCP transport.
 
 The dummy server is written in Go to make native cross-compilation easy, with no
-external dependencies or C/C++ toolchains. You can replace its executables with
-your C++ MCP server without changing the technique. End users do not need Go.
+external dependencies or platform-specific compiler toolchains. You can replace
+its executables with any native stdio MCP server, regardless of implementation
+language. End users do not need Go.
 
 ## The problem this solves
 
-Suppose your existing MCP server is written in C++ and distributed as separate
-Windows x64, macOS Apple Silicon, and macOS Intel executables. You want users to
-install one plugin, rather than choose a different plugin for each platform.
+Native MCP servers often ship separate executables for different operating
+systems and CPU architectures. This sample bundles Windows x64, macOS Apple
+Silicon, and macOS Intel builds so users can install one plugin rather than
+choose a different plugin for each platform.
 
 An MCP server configuration specifies a command to launch; it does not select
 between OS-specific commands for you. This sample makes that one command
@@ -124,19 +126,17 @@ under Rosetta on Apple Silicon selects the Intel binary.
 
 ## Try it in Copilot CLI
 
-Confirm `node --version` works in the environment that starts Copilot. Install
-this directory as a local plugin, then start a new session:
+Confirm `node --version` works in the environment that starts Copilot. From the
+sample's root directory, install it as a local plugin, then start a new session:
 
 ```powershell
-copilot plugin install C:\src\mjrousos\native-mcp-plugin-sample
+copilot plugin install .
 ```
-
-On macOS, use the actual path where you copied this directory instead.
 
 Alternatively, load it for just one CLI session without installing it:
 
 ```powershell
-copilot --plugin-dir C:\src\mjrousos\native-mcp-plugin-sample
+copilot --plugin-dir .
 ```
 
 Use `/mcp` to confirm `native-platform-demo` connected. Ask:
@@ -203,8 +203,9 @@ Build metadata can be inspected with `go version -m` followed by a binary's path
 - `go vet .` from `native`: passed.
 - `go version -m` for each binary: confirmed Windows AMD64, macOS ARM64, and
   macOS AMD64 target metadata, all with CGO disabled.
-- `copilot --plugin-dir C:\src\mjrousos\native-mcp-plugin-sample mcp get native-platform-demo --json`:
-  passed; Copilot discovered the enabled plugin MCP configuration.
+- Copilot CLI discovery via `--plugin-dir` and
+  `mcp get native-platform-demo --json`: passed; Copilot discovered the enabled
+  plugin MCP configuration.
 
 The protocol tests run locally without model requests or authentication.
 The macOS binaries were cross-compiled, not executed on this Windows machine.
@@ -213,14 +214,15 @@ Copilot App was not tested.
 ## Apply this technique to your own native MCP server
 
 1. **Build your native releases.** Produce one executable for each OS and CPU
-   architecture you support, using your normal C++ build system and toolchains.
+   architecture you support, using your implementation's build system and
+   toolchains.
    The Go cross-compilation script is only a convenience for this dummy server;
-   it does not build C++.
+   replace it with the build process appropriate for your server.
 2. **Copy the releases into `bin`.** Replace the existing files, or change the
    `binaries` mapping in `launch.cjs` to match your directory and executable
    names. Include any required DLLs, shared libraries, and resource files using
    the layout your application expects. This sample's Go binaries do not need
-   those dependencies, but that is not necessarily true of your C++ binaries.
+   those dependencies, but that is not necessarily true of other native binaries.
 3. **Keep the launcher and MCP configuration.** Retain `type: "stdio"`,
    `command: "node"`, and the plugin-root-relative launcher argument. Change
    `plugin.json`'s name, version, and description for your package, and rename
@@ -278,7 +280,7 @@ SIGTERM handlers and attempts to forward signals that Node can deliver to those
 handlers. On Windows, programmatic SIGTERM terminates the launcher without
 running its handler. Forcibly terminating the wrapper does not guarantee that its
 native child terminates, especially if the child's stdin remains open. EOF
-shutdown works for this dummy server, but an adapted C++ server must implement
+shutdown works for this dummy server, but any replacement server must implement
 its own appropriate shutdown behavior. Guaranteed process-tree cleanup would
 require additional platform-specific supervision, which is outside this sample.
 
