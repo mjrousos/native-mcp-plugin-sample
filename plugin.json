@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "native-mcp-plugin-sample",
+  "version": "1.0.0",
+  "description": "Launch a bundled native MCP server selected by OS and architecture."
+}
