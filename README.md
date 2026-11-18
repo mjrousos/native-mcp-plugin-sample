@@ -29,6 +29,9 @@ service. This example specifically assumes your server supports MCP over stdio.
 ## How the pieces connect
 
 ```text
+Marketplace catalog selects plugins\native-mcp-plugin-sample
+    |
+    v
 Copilot reads plugin.json and mcp.json
     |
     | starts node with the installed plugin's launch.cjs
@@ -40,8 +43,9 @@ JavaScript launcher reads OS + architecture
 Native MCP server handles initialize, tools/list, and tools/call
 ```
 
-1. `plugin.json` identifies the package as an Agent Plugins 1.0 plugin.
-   `mcp.json` at the plugin root supplies its MCP server configuration.
+1. The marketplace catalog points to the plugin directory, where `plugin.json`
+   identifies an Agent Plugins 1.0 plugin and `mcp.json` supplies its MCP server
+   configuration.
 2. The MCP configuration names `node` as the executable and passes
    `${PLUGIN_ROOT}/launch.cjs` as its first argument. Copilot resolves
    `${PLUGIN_ROOT}` to this plugin's installed location, so users do not need to
@@ -87,17 +91,22 @@ to this plugin's MCP `command`. No `npm install` is needed for this sample.
 ## Contents
 
 ```text
-plugin.json
-mcp.json
-launch.cjs
-bin\
-  win32-x64\server.exe
-  darwin-arm64\server
-  darwin-x64\server
-native\
-  go.mod
-  main.go
-build.cjs
+.github\
+  plugin\
+    marketplace.json
+plugins\
+  native-mcp-plugin-sample\
+    plugin.json
+    mcp.json
+    launch.cjs
+    bin\
+      win32-x64\server.exe
+      darwin-arm64\server
+      darwin-x64\server
+    native\
+      go.mod
+      main.go
+    build.cjs
 package.json
 test\
   server.test.cjs
@@ -105,14 +114,17 @@ test\
 
 | File or directory | Responsibility |
 | --- | --- |
-| `plugin.json` | Plugin identity, version, and format declaration. |
-| `mcp.json` | Registers the stdio server and launches the JavaScript entry point. |
-| `launch.cjs` | Selects and starts a bundled executable; required at runtime. |
-| `bin` | Prebuilt native executables; required at runtime. |
-| `native` | Dummy Go server source; needed only to rebuild the sample binaries. |
-| `build.cjs` | Cross-compiles the dummy server for the three configured targets. |
-| `package.json` | Convenient build/test commands; no third-party JS dependencies. |
-| `test\server.test.cjs` | Exercises the real launcher and host-platform binary. |
+| `.github\plugin\marketplace.json` | Lists the plugin and its repository-relative source. |
+| `plugins\native-mcp-plugin-sample\plugin.json` | Plugin identity, version, and format declaration. |
+| `plugins\native-mcp-plugin-sample\mcp.json` | Registers the stdio server and launches the JavaScript entry point. |
+| `plugins\native-mcp-plugin-sample\launch.cjs` | Selects and starts a bundled executable; required at runtime. |
+| `plugins\native-mcp-plugin-sample\bin` | Prebuilt native executables; required at runtime. |
+| `plugins\native-mcp-plugin-sample\native` | Dummy Go server source; needed only to rebuild the sample binaries. |
+| `plugins\native-mcp-plugin-sample\build.cjs` | Cross-compiles the dummy server for the three configured targets. |
+| `package.json` | Repository-root build/test commands; no third-party JS dependencies. |
+| `test\server.test.cjs` | Checks the marketplace entry and exercises the real launcher and host-platform binary. |
+
+The executable paths below are relative to `plugins\native-mcp-plugin-sample`.
 
 | Launcher platform | Native executable |
 | --- | --- |
@@ -126,14 +138,19 @@ under Rosetta on Apple Silicon selects the Intel binary.
 
 ## Try it in Copilot CLI
 
-Confirm `node --version` works in the environment that starts Copilot. From the
-sample's root directory, install it as a local plugin, then start a new session:
+Confirm `node --version` works in the environment that starts Copilot. If you
+previously installed the plugin directly, first uninstall that copy with
+`copilot plugin uninstall native-mcp-plugin-sample`.
+
+Register the GitHub marketplace and install the plugin:
 
 ```powershell
-copilot plugin install .
+copilot plugin marketplace add mjrousos/native-mcp-plugin-sample
+copilot plugin install native-mcp-plugin-sample@native-mcp-samples
 ```
 
-Alternatively, load it for just one CLI session without installing it:
+Then start a new session. To load local edits for just one CLI session instead,
+run this from the plugin directory `plugins\native-mcp-plugin-sample`:
 
 ```powershell
 copilot --plugin-dir .
@@ -161,9 +178,10 @@ this is not an install hook or a background daemon.
 ## macOS distribution
 
 When copying from Windows, preserve or restore executable permissions for
-**both** macOS binaries. In a macOS terminal, from the sample directory:
+**both** macOS binaries. In a macOS terminal, from the repository root:
 
 ```bash
+cd plugins/native-mcp-plugin-sample
 chmod +x bin/darwin-arm64/server bin/darwin-x64/server
 ```
 
@@ -174,8 +192,8 @@ distribution must account for your normal macOS signing and Gatekeeper workflow.
 
 ## Rebuild and test
 
-Rebuilding requires Go 1.22 or later and Node.js 22 or later. Run from this
-directory:
+Rebuilding requires Go 1.22 or later and Node.js 22 or later. Run from the
+repository root:
 
 ```powershell
 npm run build
@@ -186,7 +204,8 @@ The build produces Windows x64, macOS ARM64, and macOS x64 binaries using Go's
 cross-compiler with CGO disabled. No platform SDKs or downloaded modules are
 needed. Each binary is self-contained.
 
-The tests launch the actual server through `launch.cjs`, exercise initialization,
+The tests verify that the marketplace points to the plugin and its MCP launcher.
+They also launch the actual server through `launch.cjs`, exercise initialization,
 protocol-version negotiation, tool discovery, a tool call, ping, malformed input,
 and error handling, and check the missing-binary diagnostic. They execute the
 binary for the current host; cross-compiling a macOS binary on Windows does not
@@ -194,24 +213,28 @@ prove it runs on macOS.
 
 Build metadata can be inspected with `go version -m` followed by a binary's path.
 
-### Validation performed when creating this sample
+### Validation performed
 
-- `npm run build`: passed; produced all three native binaries.
-- `npm test`: passed all four integration tests on Windows x64, including a
-  regression test that failed against the original binary's `2025-03-26`
-  negotiation and passed after the fix.
-- `go vet .` from `native`: passed.
+- `npm run build`: passed in an isolated copy; produced all three native binaries.
+- `npm test`: passed five tests on Windows x64, including a marketplace
+  configuration check and a regression test for `2025-03-26` negotiation.
+- `go vet .` from `plugins\native-mcp-plugin-sample\native`: passed.
 - `go version -m` for each binary: confirmed Windows AMD64, macOS ARM64, and
   macOS AMD64 target metadata, all with CGO disabled.
 - Copilot CLI discovery via `--plugin-dir` and
   `mcp get native-platform-demo --json`: passed; Copilot discovered the enabled
   plugin MCP configuration.
+- Copilot CLI marketplace registration and installation passed from local and
+  Git-backed test marketplaces; a tool call through the installed plugin passed.
 
 The protocol tests run locally without model requests or authentication.
 The macOS binaries were cross-compiled, not executed on this Windows machine.
 Copilot App was not tested.
 
 ## Apply this technique to your own native MCP server
+
+The paths in these steps are relative to the plugin directory,
+`plugins\native-mcp-plugin-sample`.
 
 1. **Build your native releases.** Produce one executable for each OS and CPU
    architecture you support, using your implementation's build system and
@@ -241,8 +264,8 @@ Copilot App was not tested.
 6. **Test and distribute the whole plugin.** Exercise initialization, discovery,
    and a tool call on every supported OS/architecture. Preserve executable
    permissions, handle signing and native dependencies, and document the Node
-   prerequisite. Share the plugin directory through a repository or plugin
-   marketplace, including its binaries; consumers should not need your compiler.
+   prerequisite. Update the marketplace catalog to point to your plugin
+   directory and include its binaries; consumers should not need your compiler.
 
 For example, if your server accepts `--transport stdio`, replace its server entry
 in `mcp.json` with the following. These flags are illustrative: the dummy server
@@ -293,7 +316,7 @@ require additional platform-specific supervision, which is outside this sample.
 | `Failed to start ... ENOENT` | Confirm the selected binary and any required runtime loader are present in the installed copy. |
 | Permission denied on macOS | Restore executable permissions and check the platform's signing/quarantine diagnostics. |
 | Server starts but MCP fails | Keep stdout protocol-only, use stdio mode, and inspect stderr for native dependency or startup errors. |
-| Local edits are not reflected | Use `--plugin-dir` in a new session, or reinstall the local plugin and start a new session. |
+| Local edits are not reflected | Use `--plugin-dir` from the plugin directory in a new session, or publish changes and update the marketplace plugin. |
 
 This example verifies the technique with Copilot CLI. It does not establish
 Copilot App compatibility; confirm the target client's plugin-format and stdio
@@ -302,4 +325,5 @@ MCP support before distributing it there.
 ## References
 
 - [Creating a Copilot CLI plugin](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating)
+- [Creating and sharing a plugin marketplace](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/create-and-share-plugin-marketplaces)
 - [Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)

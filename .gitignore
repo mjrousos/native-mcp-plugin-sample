@@ -1,11 +1,11 @@
-# The prebuilt binaries under bin/ are intentionally distributed with the plugin.
+# The prebuilt binaries under plugins/native-mcp-plugin-sample/bin/ are distributed.
 node_modules/
 coverage/
 *.log
 
 # Local builds made directly from the native source directory.
-/native/native-mcp-plugin-sample
-/native/native-mcp-plugin-sample.exe
+/plugins/native-mcp-plugin-sample/native/native-mcp-plugin-sample
+/plugins/native-mcp-plugin-sample/native/native-mcp-plugin-sample.exe
 
 # Operating-system metadata.
 .DS_Store

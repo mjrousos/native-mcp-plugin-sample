@@ -1,0 +1,14 @@
+{
+  "name": "native-mcp-samples",
+  "owner": {
+    "name": "mjrousos"
+  },
+  "plugins": [
+    {
+      "name": "native-mcp-plugin-sample",
+      "description": "Launch a bundled native MCP server selected by OS and architecture.",
+      "version": "1.0.0",
+      "source": "./plugins/native-mcp-plugin-sample"
+    }
+  ]
+}

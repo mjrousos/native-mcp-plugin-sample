@@ -6,7 +6,8 @@ const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const launcher = path.join(root, "launch.cjs");
+const pluginRoot = path.join(root, "plugins", "native-mcp-plugin-sample");
+const launcher = path.join(pluginRoot, "launch.cjs");
 
 function exchange(messages, entrypoint = launcher) {
   return spawnSync(process.execPath, [entrypoint], {
@@ -27,6 +28,24 @@ function responses(result) {
   assert.equal(result.stderr, "");
   return result.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line));
 }
+
+test("marketplace entry resolves to the tested plugin and MCP launcher", () => {
+  const marketplace = JSON.parse(fs.readFileSync(
+    path.join(root, ".github", "plugin", "marketplace.json"), "utf8",
+  ));
+  const entry = marketplace.plugins.find((plugin) => plugin.name === "native-mcp-plugin-sample");
+  assert.ok(entry, "marketplace must list the sample plugin");
+  assert.equal(path.resolve(root, entry.source), pluginRoot);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, "plugin.json"), "utf8"));
+  assert.equal(entry.name, manifest.name);
+  assert.equal(entry.version, manifest.version);
+
+  const mcp = JSON.parse(fs.readFileSync(path.join(pluginRoot, "mcp.json"), "utf8"));
+  const server = mcp.mcpServers["native-platform-demo"];
+  assert.equal(server.command, "node");
+  assert.equal(path.resolve(server.args[0].replace("${PLUGIN_ROOT}", pluginRoot)), launcher);
+});
 
 test("launcher completes an MCP exchange from a different working directory", () => {
   const replies = responses(exchange([

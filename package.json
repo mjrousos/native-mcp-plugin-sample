@@ -4,7 +4,7 @@
   "private": true,
   "description": "Dependency-free JavaScript launcher for a cross-platform native MCP server.",
   "scripts": {
-    "build": "node build.cjs",
+    "build": "node plugins/native-mcp-plugin-sample/build.cjs",
     "test": "node --test test/server.test.cjs"
   },
   "engines": {
