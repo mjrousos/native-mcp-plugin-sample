@@ -1,3 +1,4 @@
+import { accessSync, constants } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { joinSession } from "@microsoft/copilot-sdk/extension";
@@ -19,6 +20,17 @@ if (!binary) {
   throw new Error(`Unsupported platform: ${platform}`);
 }
 
+const serverPath = join(pluginRoot, "bin", ...binary);
+try {
+  accessSync(serverPath, constants.X_OK);
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  throw new Error(
+    `Native MCP server binary is missing or not executable: ${serverPath} (${detail})`,
+    { cause: error },
+  );
+}
+
 // Register the executable; do not spawn it here. Copilot starts the server
 // when needed and manages its MCP stdio connection and process lifecycle.
 await joinSession({
@@ -26,7 +38,7 @@ await joinSession({
     servers: {
       "native-platform-demo": {
         type: "stdio",
-        command: join(pluginRoot, "bin", ...binary),
+        command: serverPath,
         tools: ["*"],
       },
     },

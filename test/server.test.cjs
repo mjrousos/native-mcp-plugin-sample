@@ -61,6 +61,15 @@ test("extension registers the matching native binary and rejects unsupported pla
     fs.mkdirSync(path.dirname(installedExtension), { recursive: true });
     fs.copyFileSync(extension, installedExtension);
 
+    for (const binary of Object.values(binaries)) {
+      const installedBinary = path.join(installedRoot, "bin", ...binary);
+      fs.mkdirSync(path.dirname(installedBinary), { recursive: true });
+      fs.copyFileSync(path.join(pluginRoot, "bin", ...binary), installedBinary);
+      if (process.platform !== "win32") {
+        fs.chmodSync(installedBinary, 0o755);
+      }
+    }
+
     // Replace only the SDK connection, so the real extension runs unchanged.
     const sdk = path.join(installedRoot, "node_modules", "@microsoft", "copilot-sdk");
     fs.mkdirSync(sdk, { recursive: true });
@@ -106,7 +115,6 @@ test("extension registers the matching native binary and rejects unsupported pla
           },
         },
       });
-      assert.ok(fs.existsSync(path.join(pluginRoot, "bin", ...binary)), `${platform} binary is missing`);
     }
 
     for (const [platform, arch] of [["linux", "x64"], ["win32", "arm64"]]) {
@@ -115,6 +123,24 @@ test("extension registers the matching native binary and rejects unsupported pla
       assert.notEqual(result.status, 0);
       assert.equal(result.stdout, "");
       assert.match(result.stderr, new RegExp(`Unsupported platform: ${platform}-${arch}`));
+    }
+
+    const missingBinary = path.join(installedRoot, "bin", ...binaries["win32-x64"]);
+    fs.rmSync(missingBinary);
+    const missingResult = runExtension("win32", "x64");
+    assert.ifError(missingResult.error);
+    assert.notEqual(missingResult.status, 0);
+    assert.equal(missingResult.stdout, "");
+    assert.match(missingResult.stderr, /Native MCP server binary is missing or not executable: .*server\.exe/);
+
+    if (process.platform !== "win32") {
+      const nonExecutable = path.join(installedRoot, "bin", ...binaries["darwin-arm64"]);
+      fs.chmodSync(nonExecutable, 0o644);
+      const permissionResult = runExtension("darwin", "arm64");
+      assert.ifError(permissionResult.error);
+      assert.notEqual(permissionResult.status, 0);
+      assert.equal(permissionResult.stdout, "");
+      assert.match(permissionResult.stderr, /Native MCP server binary is missing or not executable: .*server/);
     }
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true });

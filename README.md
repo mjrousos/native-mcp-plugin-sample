@@ -48,6 +48,11 @@ when the foreground session is replaced, such as with `/clear`. The extension's
 own stdout is used by its SDK connection; the native server gets its own stdio
 connection to Copilot.
 
+Installing or enabling this plugin means trusting and running its extension
+code on your computer in each session that loads it. The extension runs with
+your user privileges, subject to local Copilot and operating-system controls.
+Review the source before installing.
+
 The server's `native_platform` tool returns the OS and architecture compiled
 into the running Go executable. The Go implementation is a small protocol
 demonstration, not a production MCP framework; use your existing MCP
@@ -135,11 +140,12 @@ Start a new session with experimental features enabled:
 copilot --experimental
 ```
 
-Alternatively, run `/settings experimental on` in Copilot CLI and restart.
-Make sure the plugin is enabled and `/extensions` reports an extension mode
-other than `disabled`; `/extensions manage` shows individual extension status.
+Alternatively, run `/settings experimental on` in Copilot CLI and restart. In
+the new session, run `/extensions manage` and confirm the plugin's `native-mcp`
+extension is listed and enabled. Then run `/mcp list` and confirm
+`native-platform-demo` is connected.
 
-In the session, use `/mcp list` to check `native-platform-demo`, then ask:
+Ask Copilot:
 
 > Call the native_platform tool and tell me which OS and architecture it reports.
 
